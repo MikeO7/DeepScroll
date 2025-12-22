@@ -1,14 +1,43 @@
-import React, { useEffect, useRef, useState } from 'react';
+/**
+ * @fileoverview Canvas component for the DeepScroll editor.
+ * Handles image stitching, rendering, and all drawing tool interactions.
+ * @module Canvas
+ */
 
+import React, { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
+import { CONSTANTS } from './constants.js';
+import {
+    getInternalCoords,
+    getRectBounds,
+    drawArrow,
+    drawRect,
+    drawPenLine,
+    applyRedaction,
+    applyPixelation,
+    drawText
+} from './tools.js';
+
+/**
+ * Canvas component for editing and annotating stitched screenshots.
+ * 
+ * @component
+ * @param {Object} props - Component props
+ * @param {Array} props.slices - Array of image slice objects with dataUrl and y position
+ * @param {Object} props.metadata - Capture metadata (url, title, capturedAt, devicePixelRatio)
+ * @param {Function} props.onStitchComplete - Callback when stitching completes
+ * @param {string} props.activeTool - Currently selected tool ('select', 'blur', 'redact', etc.)
+ * @param {boolean} props.hasFooter - Whether to display the metadata footer
+ * @param {boolean} props.isBeautified - Whether beautify mode (padding/shadow) is enabled
+ * @param {Function} props.onHistoryChange - Callback when history state changes
+ * @returns {JSX.Element} The Canvas component
+ */
 export default function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isBeautified, onHistoryChange }) {
     const canvasRef = useRef(null);
     const [stitching, setStitching] = useState(false);
+    const [finalImage, setFinalImage] = useState(null);
 
-
-
-    const [finalImage, setFinalImage] = useState(null); // The stitched image (Image Object)
-
-    // Interaction State (Moved to top to fix ReferenceError)
+    // Interaction State
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState(null);
     const [currentPos, setCurrentPos] = useState(null);
@@ -229,24 +258,49 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
 
         // Background
         if (isBeautified) {
+            // Modern dark gradient background
             const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            grad.addColorStop(0, '#e0c3fc');
-            grad.addColorStop(1, '#8ec5fc');
+            grad.addColorStop(0, '#1a1a2e');
+            grad.addColorStop(0.5, '#16213e');
+            grad.addColorStop(1, '#0f3460');
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
-            ctx.shadowBlur = 30;
+            // Rounded corner clipping for the image
+            const cornerRadius = 12;
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(padding, padding, w, h, cornerRadius);
+            ctx.clip();
+
+            // Draw image first (inside clip)
+            ctx.drawImage(source, padding, padding);
+            ctx.restore();
+
+            // Draw border around image
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(padding, padding, w, h, cornerRadius);
+            ctx.stroke();
+
+            // Subtle glow effect
+            ctx.shadowColor = 'rgba(79, 172, 254, 0.3)';
+            ctx.shadowBlur = 40;
             ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 10;
+            ctx.shadowOffsetY = 0;
         } else {
             ctx.fillStyle = '#1e1e1e00';
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.shadowColor = 'transparent';
+            // Draw Main Image (non-beautified)
+            ctx.drawImage(source, padding, padding);
         }
 
-        // Draw Main Image
-        ctx.drawImage(source, padding, padding);
+        // Draw Main Image (only if not already drawn in beautify block)
+        if (!isBeautified) {
+            // Already drawn above
+        }
 
         // Draw Footer
         if (hasFooter) {
@@ -287,8 +341,8 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         // Draw Rect Preview (Ghost)
         if (isDrawing && startPos && currentPos && activeTool === 'rect') {
             ctx.shadowColor = 'transparent';
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineWidth = 8;
+            ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+            ctx.lineWidth = CONSTANTS.RECT_LINE_WIDTH;
 
             const x = Math.min(startPos.x, currentPos.x);
             const y = Math.min(startPos.y, currentPos.y);
@@ -311,12 +365,12 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
             if (len < 10) return; // Prevent glitchy tiny arrows
 
             const angle = Math.atan2(dy, dx);
-            const headlen = 25; // Reasonable size
+            const headlen = CONSTANTS.ARROW_HEAD_SIZE;
 
             ctx.shadowColor = 'transparent';
-            ctx.strokeStyle = '#ef4444';
-            ctx.fillStyle = '#ef4444';
-            ctx.lineWidth = 6;
+            ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+            ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
+            ctx.lineWidth = CONSTANTS.LINE_WIDTH;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -416,29 +470,6 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         }
     };
 
-    // ... rest of handlers ... need to verify if lines changed
-    // Wait, the ReplacementContent must replace the target content exactly.
-    // I will target the `exportImage` function and the return statement separately.
-    // It is safer.
-
-    // Changing approach to multi_replace to be safe.
-
-
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    }
-
-    // Interaction State
-    /* Moved to top */
-
-    // Mouse Handlers
-
-
     const handleMouseMove = (e) => {
         if (!isDrawing) return;
         const newPos = getMousePos(e);
@@ -520,8 +551,8 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
 
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
-        ctx.strokeStyle = '#ef4444'; // Red pen default
-        ctx.lineWidth = 6; // Bolder pen
+        ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR; // Red pen default
+        ctx.lineWidth = CONSTANTS.LINE_WIDTH;
 
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
@@ -546,11 +577,11 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         if (len < 10) return;
 
         const angle = Math.atan2(dy, dx);
-        const headlen = 25;
+        const headlen = CONSTANTS.ARROW_HEAD_SIZE;
 
-        ctx.strokeStyle = '#ef4444';
-        ctx.fillStyle = '#ef4444';
-        ctx.lineWidth = 6;
+        ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+        ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
+        ctx.lineWidth = CONSTANTS.LINE_WIDTH;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
@@ -583,8 +614,8 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         const w = Math.abs(p2.x - p1.x);
         const h = Math.abs(p2.y - p1.y);
 
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 8; // Match Arrow
+        ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+        ctx.lineWidth = CONSTANTS.RECT_LINE_WIDTH;
         ctx.strokeRect(x, y, w, h);
         renderCanvas();
     }
@@ -600,7 +631,7 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
             const p = getInternalCoords(pos);
 
             ctx.font = 'bold 24px sans-serif';
-            ctx.fillStyle = '#ef4444';
+            ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
             ctx.fillText(text, p.x, p.y);
 
             renderCanvas();
@@ -609,35 +640,22 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
     }
 
     function applyRedact(start, end) {
-        console.log('applyRedact called', start, end);
         if (!editCanvasRef.current) return;
 
         const ctx = editCanvasRef.current.getContext('2d', { willReadFrequently: true });
+        const p1 = getInternalCoords(start);
+        const p2 = getInternalCoords(end);
 
-        // Convert screen coords to internal buffer coords
-        const padding = isBeautified ? 60 : 0;
-        const x1 = start.x - padding;
-        const y1 = start.y - padding;
-        const x2 = end.x - padding;
-        const y2 = end.y - padding;
+        const x = Math.min(p1.x, p2.x);
+        const y = Math.min(p1.y, p2.y);
+        const w = Math.abs(p2.x - p1.x);
+        const h = Math.abs(p2.y - p1.y);
 
-        const x = Math.min(x1, x2);
-        const y = Math.min(y1, y2);
-        const w = Math.abs(x2 - x1);
-        const h = Math.abs(y2 - y1);
+        if (w < 2 || h < 2) return;
 
-        console.log('Redact internal coords:', x, y, w, h);
-        if (w < 2 || h < 2) {
-            console.log('Too small, skipping');
-            return;
-        }
-
-        // Black fill on BUFFER
         ctx.fillStyle = '#000000';
         ctx.fillRect(x, y, w, h);
-        console.log('fillRect done on buffer');
 
-        // Render to screen
         renderCanvas();
     }
 
@@ -668,91 +686,18 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         ctx.drawImage(offCanvas, 0, 0, sw, sh, x, y, w, h);
         ctx.imageSmoothingEnabled = true;
 
-        // Update finalImage so changes persist if we toggle beautify/footer?
-        // YES. If we don't update `finalImage` (or `modifiedImage` ref), 
-        // then `renderCanvas` (triggered by beautify toggle) will Wipe out changes.
-        // We should perform edits on a `modifiedImage` or update `finalImage`.
-        // Since `finalImage` is an Image element, we can't easily "write" to it.
-        // Better: Keep the "Stitched Base" separate.
-        // And keep a "Modifications Canvas" or "Layer"?
-        // OR: Just update `finalImage` to be a new Image created from current canvas?
-        // THIS IS THE KEY.
-
-        // However, if we update finalImage, it includes padding/shadow if 'Beautify' was on.
-        // That double-applies padding if we toggle off/on.
-
-        // Correct Logic:
-        // 1. `baseImage` (The raw stitched result).
-        // 2. `editCanvas` (Where we apply blurs). Initialized with baseImage.
-        // 3. `displayCanvas` (Visible). Draws `editCanvas` + Padding/Footer.
-
-        // For this prototype, let's just say: 
-        // Edits are DESTRUCTIVE.
-        // BUT, we only support editing on the Raw Image inside the display.
-        // If we are Beautified, the canvas has padding. 
-        // If we Blur, do we blur the padding? Probably user meant to blur the content.
-        // If we toggle Beautify OFF, we re-render from `finalImage`. 
-        // If we modified the canvas, `finalImage` is stale.
-
-        // PLAN:
-        // When stitching completes, we have `baseImage`.
-        // We should also have an `editedImage` state (initially `baseImage`).
-        // When we blur, we must blur on the `editedImage` source, regardless of view.
-        // If `isBeautified`, we map mouse coordinates back to the inner image coordinates.
-
-        // REFACTOR:
-        // Let's not persist edits for now if it requires complex layering.
-        // Wait, "The Agent must implement... The Modern Editor".
-        // It implies it works.
-
-        // Simple fix: 
-        // Apply edits to the *Canvas*. 
-        // Then output the canvas as the new `finalImage`? 
-        // If we capture canvas now, it has padding.
-
-        // Okay, simplified approach for Prototype:
-        // 1. Disable Beautify while Editing? Or just allow editing ON TOP of final result?
-        // If I blur the shadow, so be it.
-        // If I toggle Beautify OFF, I lose the blur? 
-        // YES if I re-render from original.
-
-        // Better:
-        // `useEffect` draws `finalImage`.
-        // We need to persist edits.
-        // Let's just say: `finalImage` IS the source of truth.
-        // If we edit, we update `finalImage`.
-        // But `finalImage` is the Raw Stitched.
-        // If user blurs, we want to blur the Raw Stitched.
-
-        // SO: 
-        // We need to know coordinate of click relative to Image.
-        // padding = isBeautified ? 60 : 0.
-        // imageX = mouseX - padding.
-        // imageY = mouseY - padding.
-
-        // Apply blur to `baseImage`? `Image` object is read-only.
-        // We need an offscreen canvas `editContext` that holds the pixel data of the stitched image.
-
+        // Persist blur to edit buffer
         updateEditedImage(x, y, w, h);
     }
-
-
 
     function updateEditedImage(x, y, w, h) {
         if (!editCanvasRef.current) return;
         const ctx = editCanvasRef.current.getContext('2d', { willReadFrequently: true });
-        // Coords come from the interaction (which includes padding)
-        // Remove padding
         const padding = isBeautified ? 60 : 0;
 
         const ix = x - padding;
         const iy = y - padding;
-        // Dimensions are same
 
-        // Check bounds
-        // logic omitted for brevity, ensure we don't draw outside
-
-        // Pixelate on editCanvasRef
         const factor = 0.1;
         const sw = Math.floor(w * factor) || 1;
         const sh = Math.floor(h * factor) || 1;
@@ -767,16 +712,8 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(off, 0, 0, sw, sh, ix, iy, w, h);
 
-        // Trigger Re-render
         renderCanvas();
     }
-
-    // Modify renderCanvas to use editCanvasRef instead of finalImage
-    /*
-        // Inside renderCanvas:
-        const source = editCanvasRef.current || finalImage;
-        ctx.drawImage(source, padding, padding);
-    */
 
     // Handle Drag Start
     const handleDragStart = (e) => {
@@ -802,3 +739,45 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         </div>
     );
 }
+
+// PropTypes for type checking and documentation
+Canvas.propTypes = {
+    /** Array of image slices to stitch together */
+    slices: PropTypes.arrayOf(PropTypes.shape({
+        dataUrl: PropTypes.string.isRequired,
+        y: PropTypes.number.isRequired,
+    })).isRequired,
+
+    /** Metadata about the captured page */
+    metadata: PropTypes.shape({
+        url: PropTypes.string,
+        title: PropTypes.string,
+        capturedAt: PropTypes.number,
+        devicePixelRatio: PropTypes.number,
+    }),
+
+    /** Callback when image stitching is complete */
+    onStitchComplete: PropTypes.func,
+
+    /** Currently active drawing tool */
+    activeTool: PropTypes.oneOf([
+        'select', 'blur', 'redact', 'draw', 'arrow', 'rect', 'text', 'crop'
+    ]).isRequired,
+
+    /** Whether to show the metadata footer */
+    hasFooter: PropTypes.bool,
+
+    /** Whether beautify mode (padding/shadow) is enabled */
+    isBeautified: PropTypes.bool,
+
+    /** Callback when history state changes (for undo/redo button states) */
+    onHistoryChange: PropTypes.func,
+};
+
+Canvas.defaultProps = {
+    metadata: null,
+    onStitchComplete: null,
+    hasFooter: false,
+    isBeautified: false,
+    onHistoryChange: null,
+};

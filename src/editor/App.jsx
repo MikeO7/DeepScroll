@@ -74,13 +74,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col">
-      <header className="fixed top-0 left-0 right-0 h-14 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center px-6 z-50">
-        <div className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          DeepScroll
-        </div>
-      </header>
-
-      <main className="flex-1 pt-20 pb-32 px-4 flex justify-center overflow-auto items-start">
+      <main className="flex-1 pt-8 pb-32 px-4 flex justify-center overflow-auto items-start">
         {loading ? (
           <div className="text-neutral-400 animate-pulse mt-20">Loading Capture...</div>
         ) : slices.length > 0 ? (

@@ -12456,6 +12456,91 @@ function requireClient() {
 }
 var clientExports = requireClient();
 const ReactDOM = /* @__PURE__ */ getDefaultExportFromCjs(clientExports);
+var propTypes = { exports: {} };
+var ReactPropTypesSecret_1;
+var hasRequiredReactPropTypesSecret;
+function requireReactPropTypesSecret() {
+  if (hasRequiredReactPropTypesSecret) return ReactPropTypesSecret_1;
+  hasRequiredReactPropTypesSecret = 1;
+  var ReactPropTypesSecret = "SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED";
+  ReactPropTypesSecret_1 = ReactPropTypesSecret;
+  return ReactPropTypesSecret_1;
+}
+var factoryWithThrowingShims;
+var hasRequiredFactoryWithThrowingShims;
+function requireFactoryWithThrowingShims() {
+  if (hasRequiredFactoryWithThrowingShims) return factoryWithThrowingShims;
+  hasRequiredFactoryWithThrowingShims = 1;
+  var ReactPropTypesSecret = /* @__PURE__ */ requireReactPropTypesSecret();
+  function emptyFunction() {
+  }
+  function emptyFunctionWithReset() {
+  }
+  emptyFunctionWithReset.resetWarningCache = emptyFunction;
+  factoryWithThrowingShims = function() {
+    function shim(props, propName, componentName, location, propFullName, secret) {
+      if (secret === ReactPropTypesSecret) {
+        return;
+      }
+      var err = new Error(
+        "Calling PropTypes validators directly is not supported by the `prop-types` package. Use PropTypes.checkPropTypes() to call them. Read more at http://fb.me/use-check-prop-types"
+      );
+      err.name = "Invariant Violation";
+      throw err;
+    }
+    shim.isRequired = shim;
+    function getShim() {
+      return shim;
+    }
+    var ReactPropTypes = {
+      array: shim,
+      bigint: shim,
+      bool: shim,
+      func: shim,
+      number: shim,
+      object: shim,
+      string: shim,
+      symbol: shim,
+      any: shim,
+      arrayOf: getShim,
+      element: shim,
+      elementType: shim,
+      instanceOf: getShim,
+      node: shim,
+      objectOf: getShim,
+      oneOf: getShim,
+      oneOfType: getShim,
+      shape: getShim,
+      exact: getShim,
+      checkPropTypes: emptyFunctionWithReset,
+      resetWarningCache: emptyFunction
+    };
+    ReactPropTypes.PropTypes = ReactPropTypes;
+    return ReactPropTypes;
+  };
+  return factoryWithThrowingShims;
+}
+var hasRequiredPropTypes;
+function requirePropTypes() {
+  if (hasRequiredPropTypes) return propTypes.exports;
+  hasRequiredPropTypes = 1;
+  {
+    propTypes.exports = /* @__PURE__ */ requireFactoryWithThrowingShims()();
+  }
+  return propTypes.exports;
+}
+var propTypesExports = /* @__PURE__ */ requirePropTypes();
+const PropTypes = /* @__PURE__ */ getDefaultExportFromCjs(propTypesExports);
+const CONSTANTS = {
+  /** Size of arrow heads in pixels */
+  ARROW_HEAD_SIZE: 25,
+  /** Default line width for pen and arrow tools */
+  LINE_WIDTH: 6,
+  /** Line width for rectangle outlines */
+  RECT_LINE_WIDTH: 8,
+  /** Primary annotation color (red) */
+  ANNOTATION_COLOR: "#ef4444"
+};
 function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isBeautified, onHistoryChange }) {
   const canvasRef = reactExports.useRef(null);
   const [stitching, setStitching] = reactExports.useState(false);
@@ -12621,20 +12706,33 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     canvas.height = h + padding * 2 + footerH;
     if (isBeautified) {
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      grad.addColorStop(0, "#e0c3fc");
-      grad.addColorStop(1, "#8ec5fc");
+      grad.addColorStop(0, "#1a1a2e");
+      grad.addColorStop(0.5, "#16213e");
+      grad.addColorStop(1, "#0f3460");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.shadowColor = "rgba(0,0,0,0.3)";
-      ctx.shadowBlur = 30;
+      const cornerRadius = 12;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(padding, padding, w, h, cornerRadius);
+      ctx.clip();
+      ctx.drawImage(source, padding, padding);
+      ctx.restore();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(padding, padding, w, h, cornerRadius);
+      ctx.stroke();
+      ctx.shadowColor = "rgba(79, 172, 254, 0.3)";
+      ctx.shadowBlur = 40;
       ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 10;
+      ctx.shadowOffsetY = 0;
     } else {
       ctx.fillStyle = "#1e1e1e00";
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.shadowColor = "transparent";
+      ctx.drawImage(source, padding, padding);
     }
-    ctx.drawImage(source, padding, padding);
     if (hasFooter) {
       ctx.shadowColor = "transparent";
       const footerY = padding + h;
@@ -12662,8 +12760,8 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     }
     if (isDrawing && startPos && currentPos && activeTool === "rect") {
       ctx.shadowColor = "transparent";
-      ctx.strokeStyle = "#ef4444";
-      ctx.lineWidth = 8;
+      ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+      ctx.lineWidth = CONSTANTS.RECT_LINE_WIDTH;
       const x = Math.min(startPos.x, currentPos.x);
       const y = Math.min(startPos.y, currentPos.y);
       const rw = Math.abs(currentPos.x - startPos.x);
@@ -12678,11 +12776,11 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       const len = Math.sqrt(dx * dx + dy * dy);
       if (len < 10) return;
       const angle = Math.atan2(dy, dx);
-      const headlen = 25;
+      const headlen = CONSTANTS.ARROW_HEAD_SIZE;
       ctx.shadowColor = "transparent";
-      ctx.strokeStyle = "#ef4444";
-      ctx.fillStyle = "#ef4444";
-      ctx.lineWidth = 6;
+      ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+      ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
+      ctx.lineWidth = CONSTANTS.LINE_WIDTH;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
@@ -12758,14 +12856,6 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       ctx.moveTo(ix, iy);
     }
   };
-  function loadImage(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-  }
   const handleMouseMove = (e) => {
     if (!isDrawing) return;
     const newPos = getMousePos(e);
@@ -12808,7 +12898,7 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     setStartPos(null);
     setCurrentPos(null);
   };
-  function getInternalCoords(pos) {
+  function getInternalCoords2(pos) {
     if (!pos) return { x: 0, y: 0 };
     const padding = isBeautified ? 60 : 0;
     return {
@@ -12818,8 +12908,8 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
   }
   function applyCrop(start, end) {
     if (!editCanvasRef.current) return;
-    const p1 = getInternalCoords(start);
-    const p2 = getInternalCoords(end);
+    const p1 = getInternalCoords2(start);
+    const p2 = getInternalCoords2(end);
     const x = Math.min(p1.x, p2.x);
     const y = Math.min(p1.y, p2.y);
     const w = Math.abs(p2.x - p1.x);
@@ -12836,12 +12926,12 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
   function drawPenStroke(prev, curr) {
     if (!editCanvasRef.current) return;
     const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    const p1 = getInternalCoords(prev);
-    const p2 = getInternalCoords(curr);
+    const p1 = getInternalCoords2(prev);
+    const p2 = getInternalCoords2(curr);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    ctx.strokeStyle = "#ef4444";
-    ctx.lineWidth = 6;
+    ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+    ctx.lineWidth = CONSTANTS.LINE_WIDTH;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -12851,17 +12941,17 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
   function applyArrow(start, end) {
     if (!editCanvasRef.current) return;
     const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    const head = getInternalCoords(start);
-    const tail = getInternalCoords(end);
+    const head = getInternalCoords2(start);
+    const tail = getInternalCoords2(end);
     const dx = head.x - tail.x;
     const dy = head.y - tail.y;
     const len = Math.sqrt(dx * dx + dy * dy);
     if (len < 10) return;
     const angle = Math.atan2(dy, dx);
-    const headlen = 25;
-    ctx.strokeStyle = "#ef4444";
-    ctx.fillStyle = "#ef4444";
-    ctx.lineWidth = 6;
+    const headlen = CONSTANTS.ARROW_HEAD_SIZE;
+    ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+    ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
+    ctx.lineWidth = CONSTANTS.LINE_WIDTH;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -12880,14 +12970,14 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
   function applyRect(start, end) {
     if (!editCanvasRef.current) return;
     const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    const p1 = getInternalCoords(start);
-    const p2 = getInternalCoords(end);
+    const p1 = getInternalCoords2(start);
+    const p2 = getInternalCoords2(end);
     const x = Math.min(p1.x, p2.x);
     const y = Math.min(p1.y, p2.y);
     const w = Math.abs(p2.x - p1.x);
     const h = Math.abs(p2.y - p1.y);
-    ctx.strokeStyle = "#ef4444";
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = CONSTANTS.ANNOTATION_COLOR;
+    ctx.lineWidth = CONSTANTS.RECT_LINE_WIDTH;
     ctx.strokeRect(x, y, w, h);
     renderCanvas();
   }
@@ -12897,35 +12987,26 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       if (!text) return;
       if (!editCanvasRef.current) return;
       const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-      const p = getInternalCoords(pos);
+      const p = getInternalCoords2(pos);
       ctx.font = "bold 24px sans-serif";
-      ctx.fillStyle = "#ef4444";
+      ctx.fillStyle = CONSTANTS.ANNOTATION_COLOR;
       ctx.fillText(text, p.x, p.y);
       renderCanvas();
       saveState();
     }, 10);
   }
   function applyRedact(start, end) {
-    console.log("applyRedact called", start, end);
     if (!editCanvasRef.current) return;
     const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    const padding = isBeautified ? 60 : 0;
-    const x1 = start.x - padding;
-    const y1 = start.y - padding;
-    const x2 = end.x - padding;
-    const y2 = end.y - padding;
-    const x = Math.min(x1, x2);
-    const y = Math.min(y1, y2);
-    const w = Math.abs(x2 - x1);
-    const h = Math.abs(y2 - y1);
-    console.log("Redact internal coords:", x, y, w, h);
-    if (w < 2 || h < 2) {
-      console.log("Too small, skipping");
-      return;
-    }
+    const p1 = getInternalCoords2(start);
+    const p2 = getInternalCoords2(end);
+    const x = Math.min(p1.x, p2.x);
+    const y = Math.min(p1.y, p2.y);
+    const w = Math.abs(p2.x - p1.x);
+    const h = Math.abs(p2.y - p1.y);
+    if (w < 2 || h < 2) return;
     ctx.fillStyle = "#000000";
     ctx.fillRect(x, y, w, h);
-    console.log("fillRect done on buffer");
     renderCanvas();
   }
   function applyBlur(start, end) {
@@ -12993,6 +13074,46 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     stitching && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-white mt-4 animate-pulse", children: "Stitching..." })
   ] });
 }
+Canvas.propTypes = {
+  /** Array of image slices to stitch together */
+  slices: PropTypes.arrayOf(PropTypes.shape({
+    dataUrl: PropTypes.string.isRequired,
+    y: PropTypes.number.isRequired
+  })).isRequired,
+  /** Metadata about the captured page */
+  metadata: PropTypes.shape({
+    url: PropTypes.string,
+    title: PropTypes.string,
+    capturedAt: PropTypes.number,
+    devicePixelRatio: PropTypes.number
+  }),
+  /** Callback when image stitching is complete */
+  onStitchComplete: PropTypes.func,
+  /** Currently active drawing tool */
+  activeTool: PropTypes.oneOf([
+    "select",
+    "blur",
+    "redact",
+    "draw",
+    "arrow",
+    "rect",
+    "text",
+    "crop"
+  ]).isRequired,
+  /** Whether to show the metadata footer */
+  hasFooter: PropTypes.bool,
+  /** Whether beautify mode (padding/shadow) is enabled */
+  isBeautified: PropTypes.bool,
+  /** Callback when history state changes (for undo/redo button states) */
+  onHistoryChange: PropTypes.func
+};
+Canvas.defaultProps = {
+  metadata: null,
+  onStitchComplete: null,
+  hasFooter: false,
+  isBeautified: false,
+  onHistoryChange: null
+};
 const toKebabCase = (string) => string.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 const toCamelCase = (string) => string.replace(
   /^([A-Z])|[\s-_]+(\w)/g,
@@ -13411,8 +13532,7 @@ function App() {
     window.dispatchEvent(event);
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("header", { className: "fixed top-0 left-0 right-0 h-14 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center px-6 z-50", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent", children: "DeepScroll" }) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1 pt-20 pb-32 px-4 flex justify-center overflow-auto items-start", children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-neutral-400 animate-pulse mt-20", children: "Loading Capture..." }) : slices.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `transition - all duration - 500 ease - out ${isBeautified ? "p-10 scale-95" : "p-0"} `, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1 pt-8 pb-32 px-4 flex justify-center overflow-auto items-start", children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-neutral-400 animate-pulse mt-20", children: "Loading Capture..." }) : slices.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `transition - all duration - 500 ease - out ${isBeautified ? "p-10 scale-95" : "p-0"} `, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
         className: `
