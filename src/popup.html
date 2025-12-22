@@ -6,65 +6,205 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeepScroll</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            width: 220px;
-            padding: 24px;
-            background: #0f172a;
+            width: 280px;
+            padding: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: white;
-            font-family: -apple-system,
-                BlinkMacSystemFont,
-                'Segoe UI',
-                Roboto,
-                sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo-wrapper {
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(251, 146, 60, 0.15) 0%, rgba(251, 146, 60, 0.05) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(251, 146, 60, 0.2);
+            box-shadow: 0 8px 32px rgba(251, 146, 60, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .logo-wrapper:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(251, 146, 60, 0.25);
+        }
+
+        .logo-wrapper img {
+            width: 40px;
+            height: 40px;
+            filter: drop-shadow(0 2px 8px rgba(251, 146, 60, 0.3));
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
 
         button {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 8px;
-            background: #2563eb;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::before {
+            left: 100%;
         }
 
         button:hover {
-            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
         }
 
-        button.secondary {
-            background: #262626;
-            color: #a3a3a3;
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
 
-        button.secondary:hover {
-            background: #404040;
-            color: white;
+        .emoji {
+            font-size: 20px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .camera-icon {
+            width: 20px;
+            height: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        button:hover .camera-icon {
+            animation: none;
+            transform: scale(1.1);
+        }
+
+        .footer {
+            width: 100%;
+            padding: 16px 24px;
+            background: rgba(15, 23, 42, 0.5);
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .footer-dot {
+            width: 4px;
+            height: 4px;
+            background: #64748b;
+            border-radius: 50%;
         }
     </style>
 </head>
 
+
 <body>
-    <div
-        style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 16px;">
-        <img src="assets/logo.svg" alt="DeepScroll Logo" width="48" height="48" style="margin-bottom: 8px;">
-        <h1
-            style="margin: 0; font-size: 18px; font-weight: 700; background: linear-gradient(to right, #ffffff, #a5b4fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-            DeepScroll</h1>
+    <div class="container">
+        <div class="header">
+            <div class="logo-wrapper">
+                <img src="assets/logo.svg" alt="DeepScroll Logo">
+            </div>
+            <h1>DeepScroll</h1>
+            <div class="tagline">Privacy-First Capture</div>
+        </div>
+        <button id="captureBtn">
+            <svg class="camera-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+            </svg>
+            <span>Capture Page</span>
+        </button>
     </div>
-    <button id="captureBtn">
-        <span>📸 Capture Page</span>
-    </button>
+    <div class="footer">
+        <span>v0.1.0</span>
+        <div class="footer-dot"></div>
+        <span>Made with care</span>
+    </div>
     <script type="module" src="popup.js"></script>
 </body>
+
 
 </html>

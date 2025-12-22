@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "postbuild": "node src/utils/generate_icons.js && cp manifest.json dist/ && mkdir -p dist/assets && cp src/assets/icon-*.png dist/assets/",
     "preview": "vite preview"
   },
   "keywords": [],
