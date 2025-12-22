@@ -3,6 +3,9 @@ import React, { useEffect, useRef, useState } from 'react';
 export default function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isBeautified, onHistoryChange }) {
     const canvasRef = useRef(null);
     const [stitching, setStitching] = useState(false);
+
+
+
     const [finalImage, setFinalImage] = useState(null); // The stitched image (Image Object)
 
     // Interaction State (Moved to top to fix ReferenceError)
@@ -298,30 +301,37 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
 
         // Draw Arrow Preview (Ghost)
         if (isDrawing && startPos && currentPos && activeTool === 'arrow') {
-            ctx.shadowColor = 'transparent';
-            const headlen = 40;
-            const dx = currentPos.x - startPos.x;
-            const dy = currentPos.y - startPos.y;
-            const angle = Math.atan2(dy, dx);
+            const head = startPos; // Head fixed at Start
+            const tail = currentPos; // Tail follows Drag
 
+            const dx = head.x - tail.x;
+            const dy = head.y - tail.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+
+            if (len < 10) return; // Prevent glitchy tiny arrows
+
+            const angle = Math.atan2(dy, dx);
+            const headlen = 25; // Reasonable size
+
+            ctx.shadowColor = 'transparent';
             ctx.strokeStyle = '#ef4444';
             ctx.fillStyle = '#ef4444';
-            ctx.lineWidth = 8;
+            ctx.lineWidth = 6;
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
 
             // Shaft
             ctx.beginPath();
-            ctx.moveTo(startPos.x, startPos.y);
-            ctx.lineTo(currentPos.x, currentPos.y);
+            ctx.moveTo(tail.x, tail.y);
+            ctx.lineTo(head.x, head.y);
             ctx.stroke();
 
             // Head
             ctx.beginPath();
-            ctx.moveTo(currentPos.x, currentPos.y);
-            ctx.lineTo(currentPos.x - headlen * Math.cos(angle - Math.PI / 6), currentPos.y - headlen * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(currentPos.x - headlen * Math.cos(angle + Math.PI / 6), currentPos.y - headlen * Math.sin(angle + Math.PI / 6));
-            ctx.lineTo(currentPos.x, currentPos.y);
-            ctx.lineTo(currentPos.x - headlen * Math.cos(angle - Math.PI / 6), currentPos.y - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(head.x, head.y);
+            ctx.lineTo(head.x - headlen * Math.cos(angle - Math.PI / 6), head.y - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(head.x - headlen * Math.cos(angle + Math.PI / 6), head.y - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(head.x, head.y);
             ctx.fill();
             ctx.stroke();
         }
@@ -524,31 +534,38 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
     function applyArrow(start, end) {
         if (!editCanvasRef.current) return;
         const ctx = editCanvasRef.current.getContext('2d', { willReadFrequently: true });
-        const p1 = getInternalCoords(start);
-        const p2 = getInternalCoords(end);
 
-        // Arrow Logic
-        const headlen = 40; // Massive head
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
+        // Logic: Head at Start (p1), Tail at End (p2)
+        const head = getInternalCoords(start);
+        const tail = getInternalCoords(end);
+
+        const dx = head.x - tail.x;
+        const dy = head.y - tail.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+
+        if (len < 10) return;
+
         const angle = Math.atan2(dy, dx);
+        const headlen = 25;
 
         ctx.strokeStyle = '#ef4444';
-        ctx.fillStyle = '#ef4444'; // Fill head
-        ctx.lineWidth = 8; // Massive shaft
+        ctx.fillStyle = '#ef4444';
+        ctx.lineWidth = 6;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
+        // Shaft
         ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
+        ctx.moveTo(tail.x, tail.y);
+        ctx.lineTo(head.x, head.y);
         ctx.stroke();
 
+        // Head
         ctx.beginPath();
-        ctx.moveTo(p2.x, p2.y);
-        ctx.lineTo(p2.x - headlen * Math.cos(angle - Math.PI / 6), p2.y - headlen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(p2.x - headlen * Math.cos(angle + Math.PI / 6), p2.y - headlen * Math.sin(angle + Math.PI / 6));
-        ctx.lineTo(p2.x, p2.y);
-        ctx.lineTo(p2.x - headlen * Math.cos(angle - Math.PI / 6), p2.y - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(head.x, head.y);
+        ctx.lineTo(head.x - headlen * Math.cos(angle - Math.PI / 6), head.y - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(head.x - headlen * Math.cos(angle + Math.PI / 6), head.y - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(head.x, head.y);
         ctx.fill();
         ctx.stroke();
 
@@ -569,7 +586,6 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 8; // Match Arrow
         ctx.strokeRect(x, y, w, h);
-
         renderCanvas();
     }
 
