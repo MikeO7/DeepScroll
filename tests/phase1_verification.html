@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden; /* Fixed App Mode */
+    }
+    #app {
+      display: flex;
+      height: 100%;
+    }
+    #sidebar {
+      width: 200px;
+      background: #eee;
+      overflow-y: auto;
+    }
+    #main-scroll {
+      flex: 1;
+      overflow-y: scroll;
+      background: white;
+      position: relative;
+    }
+    .content {
+      height: 3000px; /* Make it scrollable */
+      background: linear-gradient(to bottom, #fff, #ddd);
+      padding: 20px;
+    }
+    #fixed-header {
+      position: fixed;
+      top: 0;
+      left: 200px;
+      right: 0;
+      height: 50px;
+      background: red;
+      z-index: 100;
+    }
+    .spacer { height: 100px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="sidebar">
+      <div class="content" style="height: 1000px;">Sidebar</div>
+    </div>
+    <div id="main-scroll" id="target"> <!-- This should be the target -->
+      <div id="fixed-header">FIXED HEADER</div>
+      <div class="content">
+        <h1>Main Content</h1>
+        <p>Scroll me!</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

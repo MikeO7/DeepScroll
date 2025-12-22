@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepScroll</title>
+    <style>
+        body {
+            width: 200px;
+            padding: 16px;
+            background: #0a0a0a;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button.secondary {
+            background: #262626;
+            color: #a3a3a3;
+        }
+
+        button.secondary:hover {
+            background: #404040;
+            color: white;
+        }
+    </style>
+  <script type="module" crossorigin src="../assets/popup.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/modulepreload-polyfill-COaX8i6R.js">
+</head>
+
+<body>
+    <button id="captureBtn">
+        <span>📸 Capture Page</span>
+    </button>
+</body>
+
+</html>
