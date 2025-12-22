@@ -399,10 +399,14 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     await navigator.clipboard.write([item]);
-                    alert("Copied to clipboard!");
+                    window.dispatchEvent(new CustomEvent('DEEPSCROLL_TOAST', {
+                        detail: { message: 'Image copied to clipboard!' }
+                    }));
                 } catch (err) {
                     console.error("Clipboard failed", err);
-                    alert("Failed to copy");
+                    window.dispatchEvent(new CustomEvent('DEEPSCROLL_TOAST', {
+                        detail: { message: 'Failed to copy image', type: 'error' }
+                    }));
                 }
             }, 'image/png');
         } else {
@@ -414,7 +418,9 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
             }, (downloadId) => {
                 if (chrome.runtime.lastError) {
                     console.error("Download failed:", chrome.runtime.lastError);
-                    alert("Download failed: " + chrome.runtime.lastError.message);
+                    window.dispatchEvent(new CustomEvent('DEEPSCROLL_TOAST', {
+                        detail: { message: 'Download failed', type: 'error' }
+                    }));
                 }
             });
         }

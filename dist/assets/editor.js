@@ -12803,10 +12803,14 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
         try {
           const item = new ClipboardItem({ "image/png": blob });
           await navigator.clipboard.write([item]);
-          alert("Copied to clipboard!");
+          window.dispatchEvent(new CustomEvent("DEEPSCROLL_TOAST", {
+            detail: { message: "Image copied to clipboard!" }
+          }));
         } catch (err) {
           console.error("Clipboard failed", err);
-          alert("Failed to copy");
+          window.dispatchEvent(new CustomEvent("DEEPSCROLL_TOAST", {
+            detail: { message: "Failed to copy image", type: "error" }
+          }));
         }
       }, "image/png");
     } else {
@@ -12818,7 +12822,9 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       }, (downloadId) => {
         if (chrome.runtime.lastError) {
           console.error("Download failed:", chrome.runtime.lastError);
-          alert("Download failed: " + chrome.runtime.lastError.message);
+          window.dispatchEvent(new CustomEvent("DEEPSCROLL_TOAST", {
+            detail: { message: "Download failed", type: "error" }
+          }));
         }
       });
     }
@@ -13531,7 +13537,17 @@ function App() {
     const event = new CustomEvent("DEEPSCROLL_EXPORT", { detail: { toClipboard: true } });
     window.dispatchEvent(event);
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col", children: [
+  const [toast, setToast] = reactExports.useState({ show: false, message: "", type: "success" });
+  reactExports.useEffect(() => {
+    const handleToast = (e) => {
+      const { message, type = "success" } = e.detail;
+      setToast({ show: true, message, type });
+      setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3e3);
+    };
+    window.addEventListener("DEEPSCROLL_TOAST", handleToast);
+    return () => window.removeEventListener("DEEPSCROLL_TOAST", handleToast);
+  }, []);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col relative", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1 pt-8 pb-32 px-4 flex justify-center overflow-auto items-start", children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-neutral-400 animate-pulse mt-20", children: "Loading Capture..." }) : slices.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `transition - all duration - 500 ease - out ${isBeautified ? "p-10 scale-95" : "p-0"} `, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
@@ -13555,6 +13571,21 @@ function App() {
         ]
       }
     ) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-neutral-500 mt-20", children: "No capture data found." }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      "div",
+      {
+        className: `fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] transition-all duration-300 transform 
+          ${toast.show ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"}
+        `,
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `
+          px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md border
+          ${toast.type === "error" ? "bg-red-500/10 border-red-500/20 text-red-200" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"}
+        `, children: [
+          toast.type === "success" ? /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-5 h-5 text-emerald-500", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M5 13l4 4L19 7" }) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("svg", { className: "w-5 h-5 text-red-500", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", children: /* @__PURE__ */ jsxRuntimeExports.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-medium text-sm", children: toast.message })
+        ] })
+      }
+    ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(
       Toolbar,
       {

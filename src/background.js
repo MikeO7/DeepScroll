@@ -96,6 +96,31 @@ But since we mapped _execute_action, it fires the action.onClicked.
 async function startCaptureFlow(tab) {
   if (!tab.id) return;
 
+  // Check for restricted URLs
+  const restrictedPatterns = [
+    /^chrome:\/\//,
+    /^chrome-extension:\/\//,
+    /^about:/,
+    /^edge:\/\//,
+    /^brave:\/\//,
+    /chrome\.google\.com\/webstore/
+  ];
+
+  const isRestricted = restrictedPatterns.some(pattern => pattern.test(tab.url));
+
+  if (isRestricted) {
+    // Show user-friendly notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
+      title: 'DeepScroll - Cannot Capture',
+      message: 'Browser security prevents capturing this page (chrome://, extensions, or Web Store pages).',
+      priority: 2
+    });
+    console.warn('DeepScroll: Cannot capture restricted page:', tab.url);
+    return;
+  }
+
   function sendMessage() {
     return chrome.tabs.sendMessage(tab.id, { type: "START_DEEPSCROLL" });
   }
@@ -116,7 +141,15 @@ async function startCaptureFlow(tab) {
         sendMessage().catch(e => console.error("DeepScroll: Second attempt failed", e));
       }, 100);
     } catch (injectErr) {
-      console.error("DeepScroll: Injection failed (likely restricted page)", injectErr);
+      // This shouldn't happen now that we check restricted URLs first
+      console.error("DeepScroll: Injection failed", injectErr);
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
+        title: 'DeepScroll - Error',
+        message: 'Failed to start capture. This page may have security restrictions.',
+        priority: 2
+      });
     }
   }
 }

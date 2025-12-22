@@ -72,8 +72,22 @@ export default function App() {
     window.dispatchEvent(event);
   };
 
+  // Toast State
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  useEffect(() => {
+    const handleToast = (e) => {
+      const { message, type = 'success' } = e.detail;
+      setToast({ show: true, message, type });
+      setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+    };
+
+    window.addEventListener('DEEPSCROLL_TOAST', handleToast);
+    return () => window.removeEventListener('DEEPSCROLL_TOAST', handleToast);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col">
+    <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col relative">
       <main className="flex-1 pt-8 pb-32 px-4 flex justify-center overflow-auto items-start">
         {loading ? (
           <div className="text-neutral-400 animate-pulse mt-20">Loading Capture...</div>
@@ -104,6 +118,32 @@ export default function App() {
           <div className="text-neutral-500 mt-20">No capture data found.</div>
         )}
       </main>
+
+      {/* Toast Notification */}
+      <div
+        className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] transition-all duration-300 transform 
+          ${toast.show ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'}
+        `}
+      >
+        <div className={`
+          px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md border
+          ${toast.type === 'error'
+            ? 'bg-red-500/10 border-red-500/20 text-red-200'
+            : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200'
+          }
+        `}>
+          {toast.type === 'success' ? (
+            <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          <span className="font-medium text-sm">{toast.message}</span>
+        </div>
+      </div>
 
       <Toolbar
         activeTool={activeTool}
