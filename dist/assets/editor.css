@@ -694,6 +694,9 @@ video {
 .cursor-not-allowed {
   cursor: not-allowed;
 }
+.resize {
+  resize: both;
+}
 .flex-col {
   flex-direction: column;
 }

@@ -1,0 +1,95 @@
+name: Package Extension
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build, Package & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Extension
+        run: npm run build
+
+      - name: Copy Manifest and Assets to Dist
+        run: |
+          cp manifest.json dist/
+          cp -r assets dist/
+
+      - name: Bump Build Version
+        id: bump_version
+        run: |
+          # Read current version from manifest in root (source of truth)
+          CURRENT_VERSION=$(jq -r .version manifest.json)
+          echo "Current Version: $CURRENT_VERSION"
+          
+          # Increment Patch Component (x.y.Z)
+          NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          echo "New Version: $NEW_VERSION"
+          
+          # Update manifest.json (root)
+          jq --arg v "$NEW_VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+          
+          # Update package.json (root)
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.tmp && mv package.tmp package.json
+          
+          # Update manifest.json in dist as well
+          jq --arg v "$NEW_VERSION" '.version = $v' dist/manifest.json > dist/manifest.tmp && mv dist/manifest.tmp dist/manifest.json
+          
+          # Output for next steps
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Commit and Push Version Bump
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add manifest.json package.json
+          git commit -m "Bump version to ${{ steps.bump_version.outputs.VERSION }} [skip ci]"
+          git tag "v${{ steps.bump_version.outputs.VERSION }}"
+          git push && git push --tags
+
+      - name: Create Zip File
+        run: |
+          VERSION="${{ steps.bump_version.outputs.VERSION }}"
+          ZIP_NAME="deepscroll-v${VERSION}.zip"
+          
+          cd dist
+          zip -r "../$ZIP_NAME" .
+          cd ..
+          
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.bump_version.outputs.VERSION }}
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepscroll-v${{ steps.bump_version.outputs.VERSION }}
+          path: ${{ env.ZIP_NAME }}
+          if-no-files-found: error
