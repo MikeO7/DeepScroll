@@ -266,7 +266,7 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
         }
 
         // Draw Selection Overlay (Only for box-based tools)
-        if (isDrawing && startPos && currentPos && ['crop', 'blur'].includes(activeTool)) {
+        if (isDrawing && startPos && currentPos && ['crop', 'blur', 'redact'].includes(activeTool)) {
             ctx.shadowColor = 'transparent';
             ctx.strokeStyle = 'rgba(255, 230, 0, 0.8)';
             ctx.lineWidth = 2;
@@ -295,18 +295,6 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
             ctx.strokeRect(x, y, rw, rh);
         }
 
-        // Draw Redact Preview (Ghost)
-        if (isDrawing && startPos && currentPos && activeTool === 'redact') {
-            ctx.shadowColor = 'transparent';
-            ctx.fillStyle = '#000000';
-
-            const x = Math.min(startPos.x, currentPos.x);
-            const y = Math.min(startPos.y, currentPos.y);
-            const rw = Math.abs(currentPos.x - startPos.x);
-            const rh = Math.abs(currentPos.y - startPos.y);
-
-            ctx.fillRect(x, y, rw, rh);
-        }
 
         // Draw Arrow Preview (Ghost)
         if (isDrawing && startPos && currentPos && activeTool === 'arrow') {
@@ -392,7 +380,7 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
     };
 
     const handleMouseDown = (e) => {
-        const TOOLS = ['blur', 'draw', 'arrow', 'rect', 'text', 'crop'];
+        const TOOLS = ['blur', 'redact', 'draw', 'arrow', 'rect', 'text', 'crop'];
         if (!TOOLS.includes(activeTool)) return;
 
         // Prevent default drag behavior if we are drawing
@@ -605,52 +593,36 @@ export default function Canvas({ slices, metadata, onStitchComplete, activeTool,
     }
 
     function applyRedact(start, end) {
-        // 1. Draw to Screen (Visual Feedback)
-        if (canvasRef.current && start && end) {
-            const ctx = canvasRef.current.getContext('2d', { willReadFrequently: true });
-            const x = Math.min(start.x, end.x);
-            const y = Math.min(start.y, end.y);
-            const w = Math.abs(end.x - start.x);
-            const h = Math.abs(end.y - start.y);
-
-            if (w > 1 && h > 1) {
-                ctx.save();
-                ctx.fillStyle = '#000000';
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.fillRect(x, y, w, h);
-                ctx.restore();
-            }
-        }
-
-        // 2. Commit to Buffer (Persistence)
+        console.log('applyRedact called', start, end);
         if (!editCanvasRef.current) return;
 
         const ctx = editCanvasRef.current.getContext('2d', { willReadFrequently: true });
-        const p1 = getInternalCoords(start);
-        const p2 = getInternalCoords(end);
 
-        const x = Math.min(p1.x, p2.x);
-        const y = Math.min(p1.y, p2.y);
-        const w = Math.abs(p2.x - p1.x);
-        const h = Math.abs(p2.y - p1.y);
+        // Convert screen coords to internal buffer coords
+        const padding = isBeautified ? 60 : 0;
+        const x1 = start.x - padding;
+        const y1 = start.y - padding;
+        const x2 = end.x - padding;
+        const y2 = end.y - padding;
 
-        if (w < 1 || h < 1) return;
+        const x = Math.min(x1, x2);
+        const y = Math.min(y1, y2);
+        const w = Math.abs(x2 - x1);
+        const h = Math.abs(y2 - y1);
 
-        // Use Offscreen Canvas (Like Blur)
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = w;
-        offCanvas.height = h;
-        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+        console.log('Redact internal coords:', x, y, w, h);
+        if (w < 2 || h < 2) {
+            console.log('Too small, skipping');
+            return;
+        }
 
-        offCtx.fillStyle = '#000000';
-        offCtx.fillRect(0, 0, w, h);
+        // Black fill on BUFFER
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, w, h);
+        console.log('fillRect done on buffer');
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(offCanvas, x, y);
-        ctx.restore();
-
-        // renderCanvas(); // Double-ensure sync
+        // Render to screen
+        renderCanvas();
     }
 
     function applyBlur(start, end) {

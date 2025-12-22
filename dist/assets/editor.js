@@ -12648,7 +12648,7 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       const source2 = metadata?.url ? new URL(metadata.url).hostname : "DeepScroll Capture";
       ctx.fillText(`${source2} • ${dateStr}`, canvas.width / 2, footerY + footerH / 2);
     }
-    if (isDrawing && startPos && currentPos && ["crop", "blur"].includes(activeTool)) {
+    if (isDrawing && startPos && currentPos && ["crop", "blur", "redact"].includes(activeTool)) {
       ctx.shadowColor = "transparent";
       ctx.strokeStyle = "rgba(255, 230, 0, 0.8)";
       ctx.lineWidth = 2;
@@ -12669,15 +12669,6 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
       const rw = Math.abs(currentPos.x - startPos.x);
       const rh = Math.abs(currentPos.y - startPos.y);
       ctx.strokeRect(x, y, rw, rh);
-    }
-    if (isDrawing && startPos && currentPos && activeTool === "redact") {
-      ctx.shadowColor = "transparent";
-      ctx.fillStyle = "#000000";
-      const x = Math.min(startPos.x, currentPos.x);
-      const y = Math.min(startPos.y, currentPos.y);
-      const rw = Math.abs(currentPos.x - startPos.x);
-      const rh = Math.abs(currentPos.y - startPos.y);
-      ctx.fillRect(x, y, rw, rh);
     }
     if (isDrawing && startPos && currentPos && activeTool === "arrow") {
       ctx.shadowColor = "transparent";
@@ -12748,7 +12739,7 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     };
   };
   const handleMouseDown = (e) => {
-    const TOOLS = ["blur", "draw", "arrow", "rect", "text", "crop"];
+    const TOOLS = ["blur", "redact", "draw", "arrow", "rect", "text", "crop"];
     if (!TOOLS.includes(activeTool)) return;
     setIsDrawing(true);
     const pos = getMousePos(e);
@@ -12909,39 +12900,27 @@ function Canvas({ slices, metadata, onStitchComplete, activeTool, hasFooter, isB
     }, 10);
   }
   function applyRedact(start, end) {
-    if (canvasRef.current && start && end) {
-      const ctx2 = canvasRef.current.getContext("2d", { willReadFrequently: true });
-      const x2 = Math.min(start.x, end.x);
-      const y2 = Math.min(start.y, end.y);
-      const w2 = Math.abs(end.x - start.x);
-      const h2 = Math.abs(end.y - start.y);
-      if (w2 > 1 && h2 > 1) {
-        ctx2.save();
-        ctx2.fillStyle = "#000000";
-        ctx2.globalCompositeOperation = "source-over";
-        ctx2.fillRect(x2, y2, w2, h2);
-        ctx2.restore();
-      }
-    }
+    console.log("applyRedact called", start, end);
     if (!editCanvasRef.current) return;
     const ctx = editCanvasRef.current.getContext("2d", { willReadFrequently: true });
-    const p1 = getInternalCoords(start);
-    const p2 = getInternalCoords(end);
-    const x = Math.min(p1.x, p2.x);
-    const y = Math.min(p1.y, p2.y);
-    const w = Math.abs(p2.x - p1.x);
-    const h = Math.abs(p2.y - p1.y);
-    if (w < 1 || h < 1) return;
-    const offCanvas = document.createElement("canvas");
-    offCanvas.width = w;
-    offCanvas.height = h;
-    const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
-    offCtx.fillStyle = "#000000";
-    offCtx.fillRect(0, 0, w, h);
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    ctx.drawImage(offCanvas, x, y);
-    ctx.restore();
+    const padding = isBeautified ? 60 : 0;
+    const x1 = start.x - padding;
+    const y1 = start.y - padding;
+    const x2 = end.x - padding;
+    const y2 = end.y - padding;
+    const x = Math.min(x1, x2);
+    const y = Math.min(y1, y2);
+    const w = Math.abs(x2 - x1);
+    const h = Math.abs(y2 - y1);
+    console.log("Redact internal coords:", x, y, w, h);
+    if (w < 2 || h < 2) {
+      console.log("Too small, skipping");
+      return;
+    }
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(x, y, w, h);
+    console.log("fillRect done on buffer");
+    renderCanvas();
   }
   function applyBlur(start, end) {
     const ctx = canvasRef.current.getContext("2d", { willReadFrequently: true });
