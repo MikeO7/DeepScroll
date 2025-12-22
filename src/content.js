@@ -4,6 +4,10 @@
 let isCapturing = false;
 let originalFixedElements = [];
 
+// Safety limits for infinite scroll
+const MAX_SLICES = 50; // ~50,000 pixels max (at ~1000px viewport)
+const MAX_HEIGHT_GROWTH = 3; // Allow page to grow max 3x during capture
+
 // Receiver for Background Trigger
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "START_DEEPSCROLL") {
@@ -18,6 +22,11 @@ async function initDeepScroll() {
     console.log("DeepScroll: Starting...");
 
     try {
+        // Warn about virtualized content
+        if (detectVirtualization()) {
+            console.warn("⚠️ DeepScroll: Virtualized content detected. Some content may not be captured.");
+        }
+
         // 1. Target Detection
         const target = detectScrollTarget();
         console.log("DeepScroll: Target Detected", target);
@@ -62,7 +71,7 @@ function detectScrollTarget() {
     }
 
     // Else, "Fixed App". Find largest scrollable element.
-    const allElements = document.querySelectorAll('*');
+    const allElements = getAllElements();
     let maxScrollHeight = 0;
     let bestCandidate = window; // Fallback
 
@@ -80,10 +89,37 @@ function detectScrollTarget() {
     return bestCandidate;
 }
 
+// Get all elements including those in shadow DOM
+function getAllElements(root = document) {
+    const elements = [];
+
+    function traverse(node) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            elements.push(node);
+
+            // Traverse shadow DOM
+            if (node.shadowRoot) {
+                const shadowChildren = node.shadowRoot.querySelectorAll('*');
+                for (const child of shadowChildren) {
+                    traverse(child);
+                }
+            }
+        }
+
+        // Traverse regular children
+        for (const child of node.children || []) {
+            traverse(child);
+        }
+    }
+
+    traverse(root.documentElement || root.body || root);
+    return elements;
+}
+
 // --- B. The "Clean" Pre-Roll ---
 function hideFixedElements() {
     originalFixedElements = [];
-    const allElements = document.querySelectorAll('*');
+    const allElements = getAllElements(); // Now includes shadow DOM
 
     for (const el of allElements) {
         const style = window.getComputedStyle(el);
@@ -97,6 +133,17 @@ function hideFixedElements() {
             el.style.visibility = 'hidden';
         }
     }
+}
+
+// Detect virtualized content that may cause issues
+function detectVirtualization() {
+    const indicators = [
+        document.querySelector('[data-virtualized]'),
+        document.querySelector('.ReactVirtualized__Grid'),
+        document.querySelector('[class*="virtual"]'),
+        document.querySelector('[aria-rowcount]')
+    ];
+    return indicators.some(el => el !== null);
 }
 
 function restoreFixedElements() {
@@ -113,8 +160,14 @@ async function performPreRoll(targetNode) {
     const scrollHeight = isWindow ? document.documentElement.scrollHeight : targetNode.scrollHeight;
 
     const scrollTo = (y) => {
-        if (isWindow) window.scrollTo(0, y);
-        else targetNode.scrollTop = y;
+        if (isWindow) {
+            window.scrollTo(0, y);
+            // Dispatch scroll event for event-driven content
+            window.dispatchEvent(new Event('scroll', { bubbles: true }));
+        } else {
+            targetNode.scrollTop = y;
+            targetNode.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
     };
 
     // Down
@@ -133,15 +186,37 @@ async function captureLoop(targetNode) {
 
     const getScrollHeight = () => isWindow ? document.documentElement.scrollHeight : targetNode.scrollHeight;
     const getClientHeight = () => isWindow ? window.innerHeight : targetNode.clientHeight;
-    const setScrollTop = (y) => isWindow ? window.scrollTo(0, y) : (targetNode.scrollTop = y);
+    const setScrollTop = (y) => {
+        if (isWindow) {
+            window.scrollTo(0, y);
+            // Dispatch scroll event for scroll-event-driven content
+            window.dispatchEvent(new Event('scroll', { bubbles: true }));
+        } else {
+            targetNode.scrollTop = y;
+            targetNode.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
+    };
     const getScrollTop = () => isWindow ? window.scrollY : targetNode.scrollTop;
 
     let currentY = 0;
-    const totalHeight = getScrollHeight();
+    let totalHeight = getScrollHeight();
+    const initialHeight = totalHeight; // Track for infinite scroll detection
     const viewportHeight = getClientHeight();
     const STEP = viewportHeight - 100; // Overlap mandatory
 
     while (currentY < totalHeight) {
+        // Safety check: prevent infinite capture
+        if (slices.length >= MAX_SLICES) {
+            console.warn(`DeepScroll: Reached max slices (${MAX_SLICES}). Stopping to prevent infinite capture.`);
+            break;
+        }
+
+        // Safety check: prevent runaway page growth
+        if (totalHeight > initialHeight * MAX_HEIGHT_GROWTH) {
+            console.warn(`DeepScroll: Page grew ${Math.round(totalHeight / initialHeight)}x. Stopping infinite scroll.`);
+            break;
+        }
+
         // 1. Scroll
         setScrollTop(currentY);
 
@@ -150,10 +225,12 @@ async function captureLoop(targetNode) {
 
         const actualY = getScrollTop();
 
-        // Handle end of page logic (don't capture overlap wrapper if at very bottom? 
-        // Spec says "Smart Step: Scroll down by ClientHeight - 100px". 
-        // We'll just capture what is visible. 
-        // If we are at the very bottom, capture it.
+        // Re-check scrollHeight for dynamic content (infinite scroll)
+        const newHeight = getScrollHeight();
+        if (newHeight > totalHeight) {
+            console.log(`DeepScroll: Page grew from ${totalHeight}px to ${newHeight}px`);
+            totalHeight = newHeight;
+        }
 
         // 3. Message Background
         const response = await sendMessagePromise({ type: "CAPTURE_VISIBLE_TAB", y: actualY });
@@ -161,30 +238,20 @@ async function captureLoop(targetNode) {
         if (response && response.success) {
             slices.push({
                 y: actualY,
-                sliceId: response.sliceId // Store ID
+                sliceId: response.sliceId
             });
+            console.log(`DeepScroll: Captured slice ${slices.length} at y=${actualY}`);
         } else {
             console.error("Capture buffer failed", response);
         }
 
         // Break if we are at the bottom
-        // Check if we can scroll more?
-        // Actually, simple check: if currentY + viewportHeight >= totalHeight, we are done AFTER this capture.
         if (currentY + viewportHeight >= totalHeight) {
             break;
         }
 
         // 4. Smart Step
         currentY += STEP;
-
-        // Clamp to ensure we don't overshoot (though scrollTo handles this, good to be precise)
-        // Actually, if we set scrollTop to X, and max is Y, browser clamps. 
-        // But we want to capture the very bottom.
-        // If next step overshoots, set to max scrollable position?
-        // If (currentY + viewportHeight > totalHeight), capture the specific bottom segment?
-        // The "Canvas Stitching" logic needs to handle overlaps. 
-        // If we just naively scroll by STEP, the last capture might define the end.
-        // Let's stick to the spec: "Scroll down by ClientHeight - 100px."
     }
 
     return slices;
