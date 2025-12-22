@@ -30,10 +30,16 @@ jobs:
       - name: Build Extension
         run: npm run build
 
+      - name: Generate Icons
+        run: node src/utils/generate_icons.js
+
       - name: Copy Manifest and Assets to Dist
         run: |
           cp manifest.json dist/
-          cp -r assets dist/
+          # Icons are generated into src/assets, so we copy from there to dist/assets
+          # Create dist/assets if it doesn't exist (it should from build, but to be safe)
+          mkdir -p dist/assets
+          cp src/assets/icon-*.png dist/assets/
 
       - name: Bump Build Version
         id: bump_version
