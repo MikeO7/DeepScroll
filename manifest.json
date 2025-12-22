@@ -3,6 +3,11 @@
   "name": "DeepScroll",
   "version": "0.1.0",
   "description": "The perfect privacy-first full-page capture tool.",
+  "icons": {
+    "16": "assets/icon-16.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
   "permissions": [
     "activeTab",
     "scripting",
@@ -31,7 +36,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "src/editor/index.html"
+        "editor/index.html",
+        "assets/logo.svg"
       ],
       "matches": [
         "<all_urls>"
