@@ -137,11 +137,15 @@ function ToolButton({ icon, label, isActive, primary, disabled, onClick }) {
         >
             {icon}
 
-            {/* Custom Premium Tooltip */}
-            <span className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-2 py-1 
-                           bg-neutral-800 border border-white/10 text-white text-xs font-medium 
-                           rounded shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 
-                           transition-all duration-200 pointer-events-none whitespace-nowrap z-[60]">
+            {/* Custom Modern Tooltip */}
+            <span className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-2.5 py-1.5 
+                           bg-neutral-900/90 backdrop-blur border border-white/10 text-white text-[11px] font-medium 
+                           rounded-md shadow-xl 
+                           opacity-0 translate-y-1 scale-95 pointer-events-none 
+                           group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 
+                           transition-all duration-200 ease-out 
+                           delay-100 group-hover:delay-75 
+                           z-[60] whitespace-nowrap">
                 {label}
             </span>
         </button>

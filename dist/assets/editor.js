@@ -13467,7 +13467,7 @@ function ToolButton({ icon, label, isActive, primary, disabled, onClick }) {
       `,
       children: [
         icon,
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-2 py-1 \n                           bg-neutral-800 border border-white/10 text-white text-xs font-medium \n                           rounded shadow-xl opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 \n                           transition-all duration-200 pointer-events-none whitespace-nowrap z-[60]", children: label })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-2.5 py-1.5 \n                           bg-neutral-900/90 backdrop-blur border border-white/10 text-white text-[11px] font-medium \n                           rounded-md shadow-xl \n                           opacity-0 translate-y-1 scale-95 pointer-events-none \n                           group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 \n                           transition-all duration-200 ease-out \n                           delay-100 group-hover:delay-75 \n                           z-[60] whitespace-nowrap", children: label })
       ]
     }
   );
@@ -13538,14 +13538,23 @@ function App() {
     window.dispatchEvent(event);
   };
   const [toast, setToast] = reactExports.useState({ show: false, message: "", type: "success" });
+  const toastTimeoutRef = React.useRef(null);
   reactExports.useEffect(() => {
     const handleToast = (e) => {
       const { message, type = "success" } = e.detail;
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
       setToast({ show: true, message, type });
-      setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3e3);
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast((prev) => ({ ...prev, show: false }));
+      }, 3e3);
     };
     window.addEventListener("DEEPSCROLL_TOAST", handleToast);
-    return () => window.removeEventListener("DEEPSCROLL_TOAST", handleToast);
+    return () => {
+      window.removeEventListener("DEEPSCROLL_TOAST", handleToast);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
   }, []);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "min-h-screen bg-neutral-950 text-white font-sans selection:bg-purple-500/30 flex flex-col relative", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "flex-1 pt-8 pb-32 px-4 flex justify-center overflow-auto items-start", children: loading ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-neutral-400 animate-pulse mt-20", children: "Loading Capture..." }) : slices.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `transition - all duration - 500 ease - out ${isBeautified ? "p-10 scale-95" : "p-0"} `, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(

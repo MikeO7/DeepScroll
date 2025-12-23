@@ -74,16 +74,30 @@ export default function App() {
 
   // Toast State
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const toastTimeoutRef = React.useRef(null);
 
   useEffect(() => {
     const handleToast = (e) => {
       const { message, type = 'success' } = e.detail;
+
+      // Clear existing timer to prevent premature hiding
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+
       setToast({ show: true, message, type });
-      setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+
+      // Set new timer
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast(prev => ({ ...prev, show: false }));
+      }, 3000);
     };
 
     window.addEventListener('DEEPSCROLL_TOAST', handleToast);
-    return () => window.removeEventListener('DEEPSCROLL_TOAST', handleToast);
+    return () => {
+      window.removeEventListener('DEEPSCROLL_TOAST', handleToast);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
   }, []);
 
   return (
